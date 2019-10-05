@@ -30,20 +30,21 @@ class TabNet(tf.keras.Model):
 
     def __init__(self, feature_columns,
                  feature_dim=64,
-                 num_features=None,
                  output_dim=64,
+                 num_features=None,
                  num_decision_steps=5,
                  relaxation_factor=1.5,
+                 sparsity_coefficient=1e-5,
                  batch_momentum=0.98,
                  virtual_batch_size=None,
-                 lambd_sparsity=1e-5,
+                 epsilon=1e-5,
                  **kwargs):
         """
-        Tensorflow 2.0 implementation of [tf-TabNet: Attentive Interpretable Tabular Learning](https://arxiv.org/abs/1908.07442)
+        Tensorflow 2.0 implementation of [TabNet: Attentive Interpretable Tabular Learning](https://arxiv.org/abs/1908.07442)
 
         # Hyper Parameter Tuning (Excerpt from the paper)
         We consider datasets ranging from ∼10K to ∼10M training points, with varying degrees of fitting
-        difficulty. tf-TabNet obtains high performance for all with a few general principles on hyperparameter
+        difficulty. TabNet obtains high performance for all with a few general principles on hyperparameter
         selection:
 
             - Most datasets yield the best results for Nsteps ∈ [3, 10]. Typically, larger datasets and
@@ -64,16 +65,29 @@ class TabNet(tf.keras.Model):
             - Initially large learning rate is important, which should be gradually decayed until convergence.
 
         Args:
-            feature_columns:
-            num_features:
-            feature_dim:
-            output_dim:
-            num_decision_steps:
-            relaxation_factor:
-            batch_momentum:
-            virtual_batch_size:
-            lambd_sparsity:
-            **kwargs:
+            feature_columns: The Tensorflow feature columns for the dataset.
+            feature_dim (N_a): Dimensionality of the hidden representation in feature
+                transformation block. Each layer first maps the representation to a
+                2*feature_dim-dimensional output and half of it is used to determine the
+                nonlinearity of the GLU activation where the other half is used as an
+                input to GLU, and eventually feature_dim-dimensional output is
+                transferred to the next layer.
+            output_dim (N_d): Dimensionality of the outputs of each decision step, which is
+                later mapped to the final classification or regression output.
+            num_features: The number of input features (i.e the number of columns for
+                tabular data assuming each feature is represented with 1 dimension).
+            num_decision_steps(N_steps): Number of sequential decision steps.
+            relaxation_factor (gamma): Relaxation factor that promotes the reuse of each
+                feature at different decision steps. When it is 1, a feature is enforced
+                to be used only at one decision step and as it increases, more
+                flexibility is provided to use a feature at multiple decision steps.
+            sparsity_coefficient (lambda_sparse): Strength of the sparsity regularization.
+                Sparsity may provide a favorable inductive bias for convergence to
+                higher accuracy for some datasets where most of the input features are redundant.
+            batch_momentum: Momentum in ghost batch normalization.
+            virtual_batch_size: Virtual batch size in ghost batch normalization. The
+                overall batch size should be an integer multiple of virtual_batch_size.
+            epsilon: A small number for numerical stability of the entropy calculations.
         """
         super(TabNet, self).__init__(**kwargs)
 
@@ -84,9 +98,10 @@ class TabNet(tf.keras.Model):
 
         self.num_decision_steps = num_decision_steps
         self.relaxation_factor = relaxation_factor
+        self.sparsity_coefficient = sparsity_coefficient
         self.batch_momentum = batch_momentum
         self.virtual_batch_size = virtual_batch_size
-        self.epsilon = lambd_sparsity
+        self.epsilon = epsilon
 
         self.input_features = tf.keras.layers.DenseFeatures(feature_columns)
         self.input_bn = tf.keras.layers.BatchNormalization(axis=-1, momentum=batch_momentum)
@@ -112,8 +127,8 @@ class TabNet(tf.keras.Model):
             [batch_size, self.num_features])
 
         total_entropy = 0.0
+        entropy_loss = 0.
         for ni in tf.range(self.num_decision_steps):
-
             # Feature transformer with two shared and two decision step dependent
             # blocks is used below.
             transform_f1 = self.transform_f1(masked_features, training=training)
@@ -166,14 +181,24 @@ class TabNet(tf.keras.Model):
                         -mask_values * tf.math.log(mask_values + self.epsilon), axis=1)) / (
                         tf.cast(self.num_decision_steps - 1, tf.float32))
 
+                # Add entropy loss
+                entropy_loss = total_entropy
+
                 # Feature selection.
                 masked_features = tf.multiply(mask_values, features)
 
-                # # Visualization of the feature selection mask at decision step ni
+                # Visualization of the feature selection mask at decision step ni
                 # tf.summary.image(
                 #     "Mask for step" + str(ni),
                 #     tf.expand_dims(tf.expand_dims(mask_values, 0), 3),
                 #     max_outputs=1)
+
+            else:
+                # This branch is needed for correct compilation by tf.autograph
+                entropy_loss = 0.
+
+        # Adds the loss automatically
+        self.add_loss(self.sparsity_coefficient * entropy_loss)
 
         # Visualization of the aggregated feature importances
         # tf.summary.image(
@@ -181,7 +206,7 @@ class TabNet(tf.keras.Model):
         #     tf.expand_dims(tf.expand_dims(aggregated_mask_values, 0), 3),
         #     max_outputs=1)
 
-        return output_aggregated, total_entropy
+        return output_aggregated
 
 
 class TabNetClassification(tf.keras.Model):
@@ -193,10 +218,62 @@ class TabNetClassification(tf.keras.Model):
                  output_dim=64,
                  num_decision_steps=5,
                  relaxation_factor=1.5,
+                 sparsity_coefficient=1e-5,
                  batch_momentum=0.98,
                  virtual_batch_size=None,
-                 lambd_sparsity=1e-5,
+                 epsilon=1e-5,
                  **kwargs):
+        """
+        Tensorflow 2.0 implementation of [TabNet: Attentive Interpretable Tabular Learning](https://arxiv.org/abs/1908.07442)
+
+        # Hyper Parameter Tuning (Excerpt from the paper)
+        We consider datasets ranging from ∼10K to ∼10M training points, with varying degrees of fitting
+        difficulty. TabNet obtains high performance for all with a few general principles on hyperparameter
+        selection:
+
+            - Most datasets yield the best results for Nsteps ∈ [3, 10]. Typically, larger datasets and
+            more complex tasks require a larger Nsteps. A very high value of Nsteps may suffer from
+            overfitting and yield poor generalization.
+
+            - Adjustment of the values of Nd and Na is the most efficient way of obtaining a trade-off
+            between performance and complexity. Nd = Na is a reasonable choice for most datasets. A
+            very high value of Nd and Na may suffer from overfitting and yield poor generalization.
+
+            - An optimal choice of γ can have a major role on the overall performance. Typically a larger
+            Nsteps value favors for a larger γ.
+
+            - A large batch size is beneficial for performance - if the memory constraints permit, as large
+            as 1-10 % of the total training dataset size is suggested. The virtual batch size is typically
+            much smaller than the batch size.
+
+            - Initially large learning rate is important, which should be gradually decayed until convergence.
+
+        Args:
+            feature_columns: The Tensorflow feature columns for the dataset.
+            num_classes: Number of classes.
+            feature_dim (N_a): Dimensionality of the hidden representation in feature
+                transformation block. Each layer first maps the representation to a
+                2*feature_dim-dimensional output and half of it is used to determine the
+                nonlinearity of the GLU activation where the other half is used as an
+                input to GLU, and eventually feature_dim-dimensional output is
+                transferred to the next layer.
+            output_dim (N_d): Dimensionality of the outputs of each decision step, which is
+                later mapped to the final classification or regression output.
+            num_features: The number of input features (i.e the number of columns for
+                tabular data assuming each feature is represented with 1 dimension).
+            num_decision_steps(N_steps): Number of sequential decision steps.
+            relaxation_factor (gamma): Relaxation factor that promotes the reuse of each
+                feature at different decision steps. When it is 1, a feature is enforced
+                to be used only at one decision step and as it increases, more
+                flexibility is provided to use a feature at multiple decision steps.
+            sparsity_coefficient (lambda_sparse): Strength of the sparsity regularization.
+                Sparsity may provide a favorable inductive bias for convergence to
+                higher accuracy for some datasets where most of the input features are redundant.
+            batch_momentum: Momentum in ghost batch normalization.
+            virtual_batch_size: Virtual batch size in ghost batch normalization. The
+                overall batch size should be an integer multiple of virtual_batch_size.
+            epsilon: A small number for numerical stability of the entropy calculations.
+        """
         super(TabNetClassification, self).__init__(**kwargs)
 
         self.num_classes = num_classes
@@ -207,15 +284,16 @@ class TabNetClassification(tf.keras.Model):
                              output_dim=output_dim,
                              num_decision_steps=num_decision_steps,
                              relaxation_factor=relaxation_factor,
+                             sparsity_coefficient=sparsity_coefficient,
                              batch_momentum=batch_momentum,
                              virtual_batch_size=virtual_batch_size,
-                             lambd_sparsity=lambd_sparsity,
+                             epsilon=epsilon,
                              **kwargs)
 
         self.clf = tf.keras.layers.Dense(num_classes, activation='softmax', use_bias=False)
 
     def call(self, inputs, training=None):
-        self.activations, self.total_entropy = self.tabnet(inputs, training=training)
+        self.activations = self.tabnet(inputs, training=training)
         out = self.clf(self.activations)
 
         return out
@@ -230,10 +308,62 @@ class TabNetRegression(tf.keras.Model):
                  output_dim=64,
                  num_decision_steps=5,
                  relaxation_factor=1.5,
+                 sparsity_coefficient=1e-5,
                  batch_momentum=0.98,
                  virtual_batch_size=None,
-                 lambd_sparsity=1e-5,
+                 epsilon=1e-5,
                  **kwargs):
+        """
+        Tensorflow 2.0 implementation of [TabNet: Attentive Interpretable Tabular Learning](https://arxiv.org/abs/1908.07442)
+
+        # Hyper Parameter Tuning (Excerpt from the paper)
+        We consider datasets ranging from ∼10K to ∼10M training points, with varying degrees of fitting
+        difficulty. TabNet obtains high performance for all with a few general principles on hyperparameter
+        selection:
+
+            - Most datasets yield the best results for Nsteps ∈ [3, 10]. Typically, larger datasets and
+            more complex tasks require a larger Nsteps. A very high value of Nsteps may suffer from
+            overfitting and yield poor generalization.
+
+            - Adjustment of the values of Nd and Na is the most efficient way of obtaining a trade-off
+            between performance and complexity. Nd = Na is a reasonable choice for most datasets. A
+            very high value of Nd and Na may suffer from overfitting and yield poor generalization.
+
+            - An optimal choice of γ can have a major role on the overall performance. Typically a larger
+            Nsteps value favors for a larger γ.
+
+            - A large batch size is beneficial for performance - if the memory constraints permit, as large
+            as 1-10 % of the total training dataset size is suggested. The virtual batch size is typically
+            much smaller than the batch size.
+
+            - Initially large learning rate is important, which should be gradually decayed until convergence.
+
+        Args:
+            feature_columns: The Tensorflow feature columns for the dataset.
+            num_regressors: Number of regression variables.
+            feature_dim (N_a): Dimensionality of the hidden representation in feature
+                transformation block. Each layer first maps the representation to a
+                2*feature_dim-dimensional output and half of it is used to determine the
+                nonlinearity of the GLU activation where the other half is used as an
+                input to GLU, and eventually feature_dim-dimensional output is
+                transferred to the next layer.
+            output_dim (N_d): Dimensionality of the outputs of each decision step, which is
+                later mapped to the final classification or regression output.
+            num_features: The number of input features (i.e the number of columns for
+                tabular data assuming each feature is represented with 1 dimension).
+            num_decision_steps(N_steps): Number of sequential decision steps.
+            relaxation_factor (gamma): Relaxation factor that promotes the reuse of each
+                feature at different decision steps. When it is 1, a feature is enforced
+                to be used only at one decision step and as it increases, more
+                flexibility is provided to use a feature at multiple decision steps.
+            sparsity_coefficient (lambda_sparse): Strength of the sparsity regularization.
+                Sparsity may provide a favorable inductive bias for convergence to
+                higher accuracy for some datasets where most of the input features are redundant.
+            batch_momentum: Momentum in ghost batch normalization.
+            virtual_batch_size: Virtual batch size in ghost batch normalization. The
+                overall batch size should be an integer multiple of virtual_batch_size.
+            epsilon: A small number for numerical stability of the entropy calculations.
+        """
         super(TabNetRegression, self).__init__(**kwargs)
 
         self.num_regressors = num_regressors
@@ -244,14 +374,15 @@ class TabNetRegression(tf.keras.Model):
                              output_dim=output_dim,
                              num_decision_steps=num_decision_steps,
                              relaxation_factor=relaxation_factor,
+                             sparsity_coefficient=sparsity_coefficient,
                              batch_momentum=batch_momentum,
                              virtual_batch_size=virtual_batch_size,
-                             lambd_sparsity=lambd_sparsity,
+                             epsilon=epsilon,
                              **kwargs)
 
         self.regressor = tf.keras.layers.Dense(num_regressors, use_bias=False)
 
     def call(self, inputs, training=None):
-        self.activations, self.total_entropy = self.tabnet(inputs, training=training)
+        self.activations = self.tabnet(inputs, training=training)
         out = self.regressor(self.activations)
         return out
