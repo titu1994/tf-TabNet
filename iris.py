@@ -30,7 +30,7 @@ model = tabnet.TabNetClassification(feature_columns, num_classes=3,
                                     sparsity_coefficient=1e-5, batch_momentum=0.98,
                                     virtual_batch_size=None)
 
-lr = tf.keras.optimizers.schedules.InverseTimeDecay(0.01, decay_steps=50, decay_rate=0.5, staircase=True)
+lr = tf.keras.optimizers.schedules.ExponentialDecay(0.01, decay_steps=50, decay_rate=0.9, staircase=False)
 optimizer = tf.keras.optimizers.Adam(lr)
 model.compile(optimizer, loss='categorical_crossentropy', metrics=['accuracy'], run_eagerly=True)
 
