@@ -1,6 +1,4 @@
-import numpy as np
 import tensorflow as tf
-
 from custom_objects import glu, sparsemax
 
 
@@ -175,15 +173,15 @@ class TabNet(tf.keras.Model):
 
             transform_f2 = self.transform_f2(transform_f1, training=training)
             transform_f2 = (glu(transform_f2, self.feature_dim) +
-                            transform_f1) * np.sqrt(0.5)
+                            transform_f1) * tf.math.sqrt(0.5)
 
             transform_f3 = self.transform_f3(transform_f2, training=training)
             transform_f3 = (glu(transform_f3, self.feature_dim) +
-                            transform_f2) * np.sqrt(0.5)
+                            transform_f2) * tf.math.sqrt(0.5)
 
             transform_f4 = self.transform_f4(transform_f3, training=training)
             transform_f4 = (glu(transform_f4, self.feature_dim) +
-                            transform_f3) * np.sqrt(0.5)
+                            transform_f3) * tf.math.sqrt(0.5)
 
             if ni > 0:
                 decision_out = tf.nn.relu(transform_f4[:, :self.output_dim])
