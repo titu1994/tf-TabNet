@@ -102,6 +102,10 @@ class TabNet(tf.keras.Model):
             else:
                 num_features = int(num_features)
 
+        else:
+            if num_features is None:
+                raise ValueError("If `feature_columns` is None, then `num_features` cannot be None.")
+
         feature_dim = int(feature_dim)
         output_dim = int(output_dim)
         num_decision_steps = int(num_decision_steps)
