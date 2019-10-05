@@ -26,10 +26,11 @@ for col_name in col_names:
 
 model = tabnet.TabNetClassification(feature_columns, num_classes=3,
                                     feature_dim=4, output_dim=4,
-                                    num_decision_steps=2, relaxation_factor=1.5,
-                                    batch_momentum=0.98, virtual_batch_size=None)
+                                    num_decision_steps=2, relaxation_factor=1.0,
+                                    sparsity_coefficient=1e-5, batch_momentum=0.98,
+                                    virtual_batch_size=None)
 
-lr = tf.keras.optimizers.schedules.InverseTimeDecay(0.01, decay_steps=50, decay_rate=0.5, staircase=False)
+lr = tf.keras.optimizers.schedules.InverseTimeDecay(0.01, decay_steps=50, decay_rate=0.5, staircase=True)
 optimizer = tf.keras.optimizers.Adam(lr)
 model.compile(optimizer, loss='categorical_crossentropy', metrics=['accuracy'], run_eagerly=True)
 
