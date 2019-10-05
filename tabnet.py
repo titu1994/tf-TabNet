@@ -91,8 +91,38 @@ class TabNet(tf.keras.Model):
         """
         super(TabNet, self).__init__(**kwargs)
 
+        # Input checks
+        if feature_columns is not None:
+            if type(feature_columns) not in (list, tuple):
+                raise ValueError("`feature_columns` must be a list or a tuple.")
+
+            if len(feature_columns) == 0:
+                raise ValueError("`feature_columns` must be contain at least 1 tf.feature_column !")
+
+            if num_features is None:
+                num_features = len(feature_columns)
+            else:
+                num_features = int(num_features)
+
+        feature_dim = int(feature_dim)
+        output_dim = int(output_dim)
+        num_decision_steps = int(num_decision_steps)
+        relaxation_factor = float(relaxation_factor)
+        sparsity_coefficient = float(sparsity_coefficient)
+        batch_momentum = float(batch_momentum)
+        epsilon = float(epsilon)
+
+        if relaxation_factor < 0.:
+            raise ValueError("`relaxation_factor` cannot be negative !")
+
+        if sparsity_coefficient < 0.:
+            raise ValueError("`sparsity_coefficient` cannot be negative !")
+
+        if virtual_batch_size is not None:
+            virtual_batch_size = int(virtual_batch_size)
+
         self.feature_columns = feature_columns
-        self.num_features = num_features if num_features is not None else len(feature_columns)
+        self.num_features = num_features
         self.feature_dim = feature_dim
         self.output_dim = output_dim
 
@@ -103,8 +133,13 @@ class TabNet(tf.keras.Model):
         self.virtual_batch_size = virtual_batch_size
         self.epsilon = epsilon
 
-        self.input_features = tf.keras.layers.DenseFeatures(feature_columns)
-        self.input_bn = tf.keras.layers.BatchNormalization(axis=-1, momentum=batch_momentum)
+        if self.feature_columns is not None:
+            self.input_features = tf.keras.layers.DenseFeatures(feature_columns)
+            self.input_bn = tf.keras.layers.BatchNormalization(axis=-1, momentum=batch_momentum)
+
+        else:
+            self.input_features = None
+            self.input_bn = None
 
         self.transform_f1 = TransformBlock(2 * self.feature_dim, self.batch_momentum, self.virtual_batch_size)
         self.transform_f2 = TransformBlock(2 * self.feature_dim, self.batch_momentum, self.virtual_batch_size)
@@ -113,8 +148,12 @@ class TabNet(tf.keras.Model):
         self.transform_coef = TransformBlock(self.num_features, self.batch_momentum, self.virtual_batch_size)
 
     def call(self, inputs, training=None):
-        features = self.input_features(inputs)
-        features = self.input_bn(features, training=training)
+        if self.input_features is not None:
+            features = self.input_features(inputs)
+            features = self.input_bn(features, training=training)
+
+        else:
+            features = inputs
 
         batch_size = tf.shape(features)[0]
 
