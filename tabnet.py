@@ -201,7 +201,7 @@ class TabNet(tf.keras.Model):
                 # Aggregated masks are used for visualization of the
                 # feature importance attributes.
                 scale_agg = tf.reduce_sum(decision_out, axis=1, keepdims=True)
-                scale_agg = scale_agg / (self.num_decision_steps - 1)
+                scale_agg = scale_agg / tf.cast(self.num_decision_steps - 1, tf.float32)
 
                 aggregated_mask_values += mask_values * scale_agg
 
