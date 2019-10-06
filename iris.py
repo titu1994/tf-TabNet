@@ -1,3 +1,5 @@
+import os
+import shutil
 import tensorflow as tf
 import tensorflow_datasets as tfds
 import tabnet
@@ -26,7 +28,7 @@ for col_name in col_names:
 
 model = tabnet.TabNetClassification(feature_columns, num_classes=3,
                                     feature_dim=4, output_dim=4,
-                                    num_decision_steps=2, relaxation_factor=1.0,
+                                    num_decision_steps=3, relaxation_factor=1.0,
                                     sparsity_coefficient=1e-5, batch_momentum=0.98,
                                     virtual_batch_size=None)
 
@@ -37,3 +39,22 @@ model.compile(optimizer, loss='categorical_crossentropy', metrics=['accuracy'], 
 model.fit(ds_train, epochs=100)
 
 model.summary()
+
+print()
+if os.path.exists('logs/'):
+    shutil.rmtree('logs/')
+
+""" Save the images of the feature masks """
+writer = tf.summary.create_file_writer("logs/")
+with writer.as_default():
+    for i, mask in enumerate(model.tabnet.feature_selection_masks):
+        print("Saving mask {} of shape {}".format(i + 1, mask.shape))
+        tf.summary.image('mask_at_iter_{}'.format(i + 1), step=0, data=mask, max_outputs=1)
+        writer.flush()
+
+    agg_mask = model.tabnet.aggregate_feature_selection_mask
+    print("Saving aggregate mask of shape", agg_mask.shape)
+    tf.summary.image("Aggregate Mask", step=0, data=agg_mask, max_outputs=1)
+    writer.flush()
+
+writer.close()
