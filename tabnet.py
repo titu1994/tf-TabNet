@@ -149,6 +149,9 @@ class TabNet(tf.keras.Model):
         self.transform_f4 = TransformBlock(2 * self.feature_dim, self.batch_momentum, self.virtual_batch_size)
         self.transform_coef = TransformBlock(self.num_features, self.batch_momentum, self.virtual_batch_size)
 
+        self._step_feature_selection_masks = None
+        self._step_aggregate_feature_selection_mask = None
+
     def call(self, inputs, training=None):
         if self.input_features is not None:
             features = self.input_features(inputs)
@@ -158,6 +161,8 @@ class TabNet(tf.keras.Model):
             features = inputs
 
         batch_size = tf.shape(features)[0]
+        self._step_feature_selection_masks = []
+        self._step_aggregate_feature_selection_mask = None
 
         # Initializes decision-step dependent variables.
         output_aggregated = tf.zeros([batch_size, self.output_dim])
@@ -233,6 +238,8 @@ class TabNet(tf.keras.Model):
                 #     "Mask for step" + str(ni),
                 #     tf.expand_dims(tf.expand_dims(mask_values, 0), 3),
                 #     max_outputs=1)
+                mask_at_step_i = tf.expand_dims(tf.expand_dims(mask_values, 0), 3)
+                self._step_feature_selection_masks.append(mask_at_step_i)
 
             else:
                 # This branch is needed for correct compilation by tf.autograph
@@ -247,7 +254,18 @@ class TabNet(tf.keras.Model):
         #     tf.expand_dims(tf.expand_dims(aggregated_mask_values, 0), 3),
         #     max_outputs=1)
 
+        agg_mask = tf.expand_dims(tf.expand_dims(aggregated_mask_values, 0), 3)
+        self._step_aggregate_feature_selection_mask = agg_mask
+
         return output_aggregated
+
+    @property
+    def feature_selection_masks(self):
+        return self._step_feature_selection_masks
+
+    @property
+    def aggregate_feature_selection_mask(self):
+        return self._step_aggregate_feature_selection_mask
 
 
 class TabNetClassification(tf.keras.Model):
