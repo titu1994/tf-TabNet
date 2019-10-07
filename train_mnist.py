@@ -22,7 +22,7 @@ def transform(ds):
 
 ds_train, ds_test = tfds.load(name="mnist", split=[tfds.Split.TRAIN, tfds.Split.TEST], data_dir='mnist',
                               shuffle_files=False)
-ds_train = ds_train.shuffle(50000)
+ds_train = ds_train.shuffle(60000)
 ds_train = ds_train.map(transform)
 ds_train = ds_train.batch(BATCH_SIZE)
 
@@ -35,9 +35,9 @@ model = tabnet.TabNetClassification(feature_columns=None, num_classes=10, num_fe
                                     num_decision_steps=5, relaxation_factor=1.5,
                                     sparsity_coefficient=0., batch_momentum=0.98,
                                     virtual_batch_size=None, norm_type='group',
-                                    num_groups=1)
+                                    num_groups=-1)
 
-lr = tf.keras.optimizers.schedules.ExponentialDecay(0.01, decay_steps=500, decay_rate=0.9, staircase=False)
+lr = tf.keras.optimizers.schedules.ExponentialDecay(0.001, decay_steps=500, decay_rate=0.9, staircase=False)
 optimizer = tf.keras.optimizers.Adam(lr)
 model.compile(optimizer, loss='categorical_crossentropy', metrics=['accuracy'])
 
