@@ -5,6 +5,17 @@ A Tensorflow 2.0 port for the paper [TabNet: Attentive Interpretable Tabular Lea
 
 The above image is obtained from the paper, where the model is built of blocks in two stages - one to attend to the input features and anither to construct the output of the model. 
 
+# Differences from Paper
+There are two major differences from the paper and the official implementation.
+
+1) This implementation offers a choice in the normalization method, between the regular `Batch Normalization` from the paper and `Group Normalization`.
+   - It has been observed that the paper uses very large batch sizes to stabilie Batch Normalization and obtain good generalization. An issue with this is computational cost. 
+   - Therefore Group Normalization (with number of groups set as 1, aka Instance Normalization) offers a reasonable alternative which is independent of the batch size.
+
+2) This implementation does not strictly need feature columns as input. 
+   - While this model was originally developed for tabulur data, there is no hard requirement for that to be the only type of input it accepts.
+   - By passing `feature_columns=None` and explicitly specifying the input dimensionality of the data (using `num_features`), we can get a semi-interpretable result from even image data (after flattening it into a long vector).
+
 # Usage
 
 The script `tabnet.py` can be imported to yield either the `TabNet` building block, or the `TabNetClassification` and `TabNetRegression` models, which add appropriate heads for the basic `TabNet` model. If the classification or regression head is to be customized, it is recommended to compose a new model with the `TabNet` as the base of the model.
