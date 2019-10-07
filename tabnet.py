@@ -20,7 +20,7 @@ class TransformBlock(tf.keras.Model):
 
         self.transform = tf.keras.layers.Dense(self.features, use_bias=False)
 
-        if norm_type == 'group':
+        if norm_type == 'batch':
             self.bn = tf.keras.layers.BatchNormalization(axis=-1, momentum=momentum,
                                                          virtual_batch_size=virtual_batch_size)
 
@@ -158,7 +158,7 @@ class TabNet(tf.keras.Model):
         if self.feature_columns is not None:
             self.input_features = tf.keras.layers.DenseFeatures(feature_columns)
 
-            if self.norm_type == 'group':
+            if self.norm_type == 'batch':
                 self.input_bn = tf.keras.layers.BatchNormalization(axis=-1, momentum=batch_momentum)
             else:
                 self.input_bn = GroupNormalization(axis=-1, groups=self.num_groups)
