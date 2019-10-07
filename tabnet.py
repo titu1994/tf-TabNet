@@ -1,22 +1,31 @@
 import tensorflow as tf
-from custom_objects import glu, sparsemax
+from custom_objects import glu, sparsemax, GroupNormalization
 
 
 class TransformBlock(tf.keras.Model):
 
     def __init__(self, features,
-                 momentum,
+                 norm_type,
+                 momentum=0.9,
+                 groups=2,
                  virtual_batch_size=None,
                  **kwargs):
         super(TransformBlock, self).__init__(**kwargs)
 
         self.features = features
+        self.norm_type = norm_type
         self.momentum = momentum
+        self.groups = 2
         self.virtual_batch_size = virtual_batch_size
 
         self.transform = tf.keras.layers.Dense(self.features, use_bias=False)
-        self.bn = tf.keras.layers.BatchNormalization(axis=-1, momentum=momentum,
-                                                     virtual_batch_size=virtual_batch_size)
+
+        if norm_type == 'batch':
+            self.bn = tf.keras.layers.BatchNormalization(axis=-1, momentum=momentum,
+                                                         virtual_batch_size=virtual_batch_size)
+
+        else:
+            self.bn = GroupNormalization(axis=-1, groups=self.groups)
 
     def call(self, inputs, training=None):
         x = self.transform(inputs)
@@ -33,8 +42,10 @@ class TabNet(tf.keras.Model):
                  num_decision_steps=5,
                  relaxation_factor=1.5,
                  sparsity_coefficient=1e-5,
+                 norm_type='batch',
                  batch_momentum=0.98,
                  virtual_batch_size=None,
+                 num_groups=2,
                  epsilon=1e-5,
                  **kwargs):
         """
@@ -82,9 +93,12 @@ class TabNet(tf.keras.Model):
             sparsity_coefficient (lambda_sparse): Strength of the sparsity regularization.
                 Sparsity may provide a favorable inductive bias for convergence to
                 higher accuracy for some datasets where most of the input features are redundant.
+            norm_type: Type of normalization to perform for the model. Can be either
+                'batch' or 'group'. 'batch' is the default.
             batch_momentum: Momentum in ghost batch normalization.
             virtual_batch_size: Virtual batch size in ghost batch normalization. The
                 overall batch size should be an integer multiple of virtual_batch_size.
+            num_groups: Number of groups used for group normalization.
             epsilon: A small number for numerical stability of the entropy calculations.
         """
         super(TabNet, self).__init__(**kwargs)
@@ -131,13 +145,19 @@ class TabNet(tf.keras.Model):
         self.num_decision_steps = num_decision_steps
         self.relaxation_factor = relaxation_factor
         self.sparsity_coefficient = sparsity_coefficient
+        self.norm_type = norm_type
         self.batch_momentum = batch_momentum
         self.virtual_batch_size = virtual_batch_size
+        self.num_groups = num_groups
         self.epsilon = epsilon
 
         if self.feature_columns is not None:
             self.input_features = tf.keras.layers.DenseFeatures(feature_columns)
-            self.input_bn = tf.keras.layers.BatchNormalization(axis=-1, momentum=batch_momentum)
+
+            if self.norm_type == 'batch':
+                self.input_bn = tf.keras.layers.BatchNormalization(axis=-1, momentum=batch_momentum)
+            else:
+                self.input_bn = GroupNormalization(axis=-1, groups=self.num_groups)
 
         else:
             self.input_features = None
@@ -193,7 +213,7 @@ class TabNet(tf.keras.Model):
             transform_f4 = (glu(transform_f4, self.feature_dim) +
                             transform_f3) * tf.math.sqrt(0.5)
 
-            if ni > 0:
+            if (ni > 0):
                 decision_out = tf.nn.relu(transform_f4[:, :self.output_dim])
 
                 # Decision aggregation.
@@ -208,7 +228,7 @@ class TabNet(tf.keras.Model):
 
             features_for_coef = (transform_f4[:, self.output_dim:])
 
-            if (ni < self.num_decision_steps - 1):
+            if (ni < (self.num_decision_steps - 1)):
                 # Determines the feature masks via linear and nonlinear
                 # transformations, taking into account of aggregated feature use.
                 mask_values = self.transform_coef(features_for_coef, training=training)
@@ -279,8 +299,10 @@ class TabNetClassification(tf.keras.Model):
                  num_decision_steps=5,
                  relaxation_factor=1.5,
                  sparsity_coefficient=1e-5,
+                 norm_type='batch',
                  batch_momentum=0.98,
                  virtual_batch_size=None,
+                 num_groups=1,
                  epsilon=1e-5,
                  **kwargs):
         """
@@ -329,9 +351,12 @@ class TabNetClassification(tf.keras.Model):
             sparsity_coefficient (lambda_sparse): Strength of the sparsity regularization.
                 Sparsity may provide a favorable inductive bias for convergence to
                 higher accuracy for some datasets where most of the input features are redundant.
+            norm_type: Type of normalization to perform for the model. Can be either
+                'batch' or 'group'. 'batch' is the default.
             batch_momentum: Momentum in ghost batch normalization.
             virtual_batch_size: Virtual batch size in ghost batch normalization. The
                 overall batch size should be an integer multiple of virtual_batch_size.
+            num_groups: Number of groups used for group normalization.
             epsilon: A small number for numerical stability of the entropy calculations.
         """
         super(TabNetClassification, self).__init__(**kwargs)
@@ -345,8 +370,10 @@ class TabNetClassification(tf.keras.Model):
                              num_decision_steps=num_decision_steps,
                              relaxation_factor=relaxation_factor,
                              sparsity_coefficient=sparsity_coefficient,
+                             norm_type=norm_type,
                              batch_momentum=batch_momentum,
                              virtual_batch_size=virtual_batch_size,
+                             num_groups=num_groups,
                              epsilon=epsilon,
                              **kwargs)
 
@@ -369,8 +396,10 @@ class TabNetRegression(tf.keras.Model):
                  num_decision_steps=5,
                  relaxation_factor=1.5,
                  sparsity_coefficient=1e-5,
+                 norm_type='batch',
                  batch_momentum=0.98,
                  virtual_batch_size=None,
+                 num_groups=1,
                  epsilon=1e-5,
                  **kwargs):
         """
@@ -419,9 +448,12 @@ class TabNetRegression(tf.keras.Model):
             sparsity_coefficient (lambda_sparse): Strength of the sparsity regularization.
                 Sparsity may provide a favorable inductive bias for convergence to
                 higher accuracy for some datasets where most of the input features are redundant.
+            norm_type: Type of normalization to perform for the model. Can be either
+                'batch' or 'group'. 'batch' is the default.
             batch_momentum: Momentum in ghost batch normalization.
             virtual_batch_size: Virtual batch size in ghost batch normalization. The
                 overall batch size should be an integer multiple of virtual_batch_size.
+            num_groups: Number of groups used for group normalization.
             epsilon: A small number for numerical stability of the entropy calculations.
         """
         super(TabNetRegression, self).__init__(**kwargs)
@@ -435,8 +467,10 @@ class TabNetRegression(tf.keras.Model):
                              num_decision_steps=num_decision_steps,
                              relaxation_factor=relaxation_factor,
                              sparsity_coefficient=sparsity_coefficient,
+                             norm_type=norm_type,
                              batch_momentum=batch_momentum,
                              virtual_batch_size=virtual_batch_size,
+                             num_groups=num_groups,
                              epsilon=epsilon,
                              **kwargs)
 
