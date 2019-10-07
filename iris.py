@@ -34,7 +34,7 @@ model = tabnet.TabNetClassification(feature_columns, num_classes=3,
 
 lr = tf.keras.optimizers.schedules.ExponentialDecay(0.01, decay_steps=50, decay_rate=0.9, staircase=False)
 optimizer = tf.keras.optimizers.Adam(lr)
-model.compile(optimizer, loss='categorical_crossentropy', metrics=['accuracy'], run_eagerly=True)
+model.compile(optimizer, loss='categorical_crossentropy', metrics=['accuracy'])
 
 model.fit(ds_train, epochs=100)
 
@@ -45,6 +45,10 @@ if os.path.exists('logs/'):
     shutil.rmtree('logs/')
 
 """ Save the images of the feature masks """
+# Force eager execution mode to generate the masks
+x, y = next(iter(ds_train))
+_ = model(x)
+
 writer = tf.summary.create_file_writer("logs/")
 with writer.as_default():
     for i, mask in enumerate(model.tabnet.feature_selection_masks):
