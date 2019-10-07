@@ -20,7 +20,7 @@ class TransformBlock(tf.keras.Model):
 
         self.transform = tf.keras.layers.Dense(self.features, use_bias=False)
 
-        if norm_type == 'batch':
+        if norm_type == 'group':
             self.bn = tf.keras.layers.BatchNormalization(axis=-1, momentum=momentum,
                                                          virtual_batch_size=virtual_batch_size)
 
@@ -42,7 +42,7 @@ class TabNet(tf.keras.Model):
                  num_decision_steps=5,
                  relaxation_factor=1.5,
                  sparsity_coefficient=1e-5,
-                 norm_type='batch',
+                 norm_type='group',
                  batch_momentum=0.98,
                  virtual_batch_size=None,
                  num_groups=2,
@@ -94,7 +94,7 @@ class TabNet(tf.keras.Model):
                 Sparsity may provide a favorable inductive bias for convergence to
                 higher accuracy for some datasets where most of the input features are redundant.
             norm_type: Type of normalization to perform for the model. Can be either
-                'batch' or 'group'. 'batch' is the default.
+                'group' or 'group'. 'group' is the default.
             batch_momentum: Momentum in ghost batch normalization.
             virtual_batch_size: Virtual batch size in ghost batch normalization. The
                 overall batch size should be an integer multiple of virtual_batch_size.
@@ -138,7 +138,7 @@ class TabNet(tf.keras.Model):
         if virtual_batch_size is not None:
             virtual_batch_size = int(virtual_batch_size)
 
-        if norm_type not in ['batch', 'group']:
+        if norm_type not in ['group', 'group']:
             raise ValueError("`norm_type` must be either `batch` or `group`")
 
         self.feature_columns = feature_columns
@@ -158,7 +158,7 @@ class TabNet(tf.keras.Model):
         if self.feature_columns is not None:
             self.input_features = tf.keras.layers.DenseFeatures(feature_columns)
 
-            if self.norm_type == 'batch':
+            if self.norm_type == 'group':
                 self.input_bn = tf.keras.layers.BatchNormalization(axis=-1, momentum=batch_momentum)
             else:
                 self.input_bn = GroupNormalization(axis=-1, groups=self.num_groups)
@@ -303,7 +303,7 @@ class TabNetClassification(tf.keras.Model):
                  num_decision_steps=5,
                  relaxation_factor=1.5,
                  sparsity_coefficient=1e-5,
-                 norm_type='batch',
+                 norm_type='group',
                  batch_momentum=0.98,
                  virtual_batch_size=None,
                  num_groups=1,
@@ -356,7 +356,7 @@ class TabNetClassification(tf.keras.Model):
                 Sparsity may provide a favorable inductive bias for convergence to
                 higher accuracy for some datasets where most of the input features are redundant.
             norm_type: Type of normalization to perform for the model. Can be either
-                'batch' or 'group'. 'batch' is the default.
+                'group' or 'group'. 'group' is the default.
             batch_momentum: Momentum in ghost batch normalization.
             virtual_batch_size: Virtual batch size in ghost batch normalization. The
                 overall batch size should be an integer multiple of virtual_batch_size.
@@ -400,7 +400,7 @@ class TabNetRegression(tf.keras.Model):
                  num_decision_steps=5,
                  relaxation_factor=1.5,
                  sparsity_coefficient=1e-5,
-                 norm_type='batch',
+                 norm_type='group',
                  batch_momentum=0.98,
                  virtual_batch_size=None,
                  num_groups=1,
@@ -453,7 +453,7 @@ class TabNetRegression(tf.keras.Model):
                 Sparsity may provide a favorable inductive bias for convergence to
                 higher accuracy for some datasets where most of the input features are redundant.
             norm_type: Type of normalization to perform for the model. Can be either
-                'batch' or 'group'. 'batch' is the default.
+                'group' or 'group'. 'group' is the default.
             batch_momentum: Momentum in ghost batch normalization.
             virtual_batch_size: Virtual batch size in ghost batch normalization. The
                 overall batch size should be an integer multiple of virtual_batch_size.
