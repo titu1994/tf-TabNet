@@ -81,4 +81,4 @@ writer.close()
 
 # Requirements
 - Tensorflow 2.0+ (1.14+ with V2 compat enabled may be sufficient for 1.x)
-- Tensorflow-datasets (Only required for evaluating `train_yiris.py`)
+- Tensorflow-datasets (Only required for evaluating `train_iris.py`)
