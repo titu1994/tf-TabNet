@@ -11,6 +11,7 @@ There are two major differences from the paper and the official implementation.
 1) This implementation offers a choice in the normalization method, between the regular `Batch Normalization` from the paper and `Group Normalization`.
    - It has been observed that the paper uses very large batch sizes to stabilie Batch Normalization and obtain good generalization. An issue with this is computational cost. 
    - Therefore Group Normalization (with number of groups set as 1, aka Instance Normalization) offers a reasonable alternative which is independent of the batch size.
+   - One can set `num_groups` to 1 for `Instance Normalization` type behaviour, or to -1 for `Layer Normalization` type behaviour.
 
 2) This implementation does not strictly need feature columns as input. 
    - While this model was originally developed for tabulur data, there is no hard requirement for that to be the only type of input it accepts.
