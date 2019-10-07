@@ -4,6 +4,7 @@ import tensorflow as tf
 import tensorflow_datasets as tfds
 import tabnet
 
+train_size = 125
 BATCH_SIZE = 50
 
 
@@ -17,26 +18,34 @@ def transform(ds):
 
 
 col_names = ['sepal_length', 'sepal_width', 'petal_length', 'petal_width']
-ds_train = tfds.load(name="iris", split=tfds.Split.TRAIN)
-ds_train = ds_train.shuffle(150)
+ds_full = tfds.load(name="iris", split=tfds.Split.TRAIN)
+ds_full = ds_full.shuffle(150, seed=0)
+
+ds_train = ds_full.take(train_size)
 ds_train = ds_train.map(transform)
 ds_train = ds_train.batch(BATCH_SIZE)
+
+ds_test = ds_full.skip(train_size)
+ds_test = ds_test.map(transform)
+ds_test = ds_test.batch(BATCH_SIZE)
 
 feature_columns = []
 for col_name in col_names:
     feature_columns.append(tf.feature_column.numeric_column(col_name))
 
+# Group Norm does better for small datasets
 model = tabnet.TabNetClassification(feature_columns, num_classes=3,
                                     feature_dim=4, output_dim=4,
                                     num_decision_steps=2, relaxation_factor=1.0,
                                     sparsity_coefficient=1e-5, batch_momentum=0.98,
-                                    virtual_batch_size=None)
+                                    virtual_batch_size=None, norm_type='group',
+                                    num_groups=1)
 
-lr = tf.keras.optimizers.schedules.ExponentialDecay(0.01, decay_steps=50, decay_rate=0.9, staircase=False)
+lr = tf.keras.optimizers.schedules.ExponentialDecay(0.01, decay_steps=100, decay_rate=0.9, staircase=False)
 optimizer = tf.keras.optimizers.Adam(lr)
 model.compile(optimizer, loss='categorical_crossentropy', metrics=['accuracy'])
 
-model.fit(ds_train, epochs=100)
+model.fit(ds_train, epochs=100, validation_data=ds_test, verbose=2)
 
 model.summary()
 
