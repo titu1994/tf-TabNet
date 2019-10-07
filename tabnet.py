@@ -126,6 +126,7 @@ class TabNet(tf.keras.Model):
         relaxation_factor = float(relaxation_factor)
         sparsity_coefficient = float(sparsity_coefficient)
         batch_momentum = float(batch_momentum)
+        num_groups = max(1, int(num_groups))
         epsilon = float(epsilon)
 
         if relaxation_factor < 0.:
@@ -136,6 +137,9 @@ class TabNet(tf.keras.Model):
 
         if virtual_batch_size is not None:
             virtual_batch_size = int(virtual_batch_size)
+
+        if norm_type not in ['batch', 'group']:
+            raise ValueError("`norm_type` must be either `batch` or `group`")
 
         self.feature_columns = feature_columns
         self.num_features = num_features
