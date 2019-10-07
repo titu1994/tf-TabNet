@@ -15,7 +15,7 @@ class TransformBlock(tf.keras.Model):
         self.features = features
         self.norm_type = norm_type
         self.momentum = momentum
-        self.groups = 2
+        self.groups = groups
         self.virtual_batch_size = virtual_batch_size
 
         self.transform = tf.keras.layers.Dense(self.features, use_bias=False)
