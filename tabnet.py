@@ -174,7 +174,8 @@ class TabNet(tf.keras.Model):
 
         total_entropy = 0.0
         entropy_loss = 0.
-        for ni in tf.range(self.num_decision_steps):
+
+        for ni in range(self.num_decision_steps):
             # Feature transformer with two shared and two decision step dependent
             # blocks is used below.
             transform_f1 = self.transform_f1(masked_features, training=training)
