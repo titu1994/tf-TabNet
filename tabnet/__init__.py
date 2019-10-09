@@ -4,4 +4,4 @@ from tabnet.tabnet import TabNetRegression
 
 __all__ = ['TabNet', 'TabNetClassification', 'TabNetRegression']
 
-__version__ = '0.1.1'
+__version__ = '0.1.2'
