@@ -1,5 +1,5 @@
 import tensorflow as tf
-from custom_objects import glu, sparsemax, GroupNormalization
+from tabnet.custom_objects import glu, sparsemax, GroupNormalization
 
 
 class TransformBlock(tf.keras.Model):
