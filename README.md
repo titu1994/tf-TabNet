@@ -18,6 +18,13 @@ There are two major differences from the paper and the official implementation.
    - By passing `feature_columns=None` and explicitly specifying the input dimensionality of the data (using `num_features`), we can get a semi-interpretable result from even image data (after flattening it into a long vector).
 
 # Installation
+
+ - For latest release branch
+```bash
+$ pip install --upgrade tabnet
+```
+
+ - For Master branch.
 ```bash
 $ pip install git+https://github.com/titu1994/tf-TabNet.git
 ```
@@ -25,8 +32,8 @@ $ pip install git+https://github.com/titu1994/tf-TabNet.git
 As Tensorflow can be used with either a CPU or GPU, the package can be installed with the conditional requirements using `[cpu]` or `[gpu]` as follows.
 
 ```bash
-$ pip install .[cpu]
-$ pip install .[gpu]
+$ pip install tabnet[cpu]
+$ pip install tabnet[gpu]
 ```
 
 # Usage
