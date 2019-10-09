@@ -108,7 +108,7 @@ setup(
     long_description_content_type='text/markdown',
     install_requires=REQUIREMENTS,
     extras_require=EXTRA_REQUIREMENTS,
-    classifiers=(
+    classifiers=[
         "Programming Language :: Python :: 3",
         "Programming Language :: Python :: 3.5",
         "Programming Language :: Python :: 3.6",
@@ -117,7 +117,7 @@ setup(
         "Operating System :: OS Independent",
         "Topic :: Software Development :: Libraries",
         "Topic :: Software Development :: Libraries :: Python Modules",
-    ),
+    ],
     test_suite="tests",
     # python setup.py upload
     cmdclass={
