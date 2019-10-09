@@ -17,6 +17,18 @@ There are two major differences from the paper and the official implementation.
    - While this model was originally developed for tabulur data, there is no hard requirement for that to be the only type of input it accepts.
    - By passing `feature_columns=None` and explicitly specifying the input dimensionality of the data (using `num_features`), we can get a semi-interpretable result from even image data (after flattening it into a long vector).
 
+# Installation
+```bash
+$ pip install git+https://github.com/titu1994/tf-TabNet.git
+```
+
+As Tensorflow can be used with either a CPU or GPU, the package can be installed with the conditional requirements using `[cpu]` or `[gpu]` as follows.
+
+```bash
+$ pip install .[cpu]
+$ pip install .[gpu]
+```
+
 # Usage
 
 The script `tabnet.py` can be imported to yield either the `TabNet` building block, or the `TabNetClassification` and `TabNetRegression` models, which add appropriate heads for the basic `TabNet` model. If the classification or regression head is to be customized, it is recommended to compose a new model with the `TabNet` as the base of the model.
