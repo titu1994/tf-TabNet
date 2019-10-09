@@ -119,3 +119,5 @@ build/*
 examples/logs
 examples/mnist
 examples/mnist_logs
+
+dist
