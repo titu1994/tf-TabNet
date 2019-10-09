@@ -11,7 +11,7 @@ def glu(x, n_units=None):
     if n_units is None:
         n_units = tf.shape(x)[-1] // 2
 
-    return x[:, :n_units] * tf.nn.sigmoid(x[:, n_units:])
+    return x[..., :n_units] * tf.nn.sigmoid(x[..., n_units:])
 
 
 """
