@@ -167,11 +167,16 @@ class TabNet(tf.keras.Model):
             self.input_features = None
             self.input_bn = None
 
-        self.transform_f1 = TransformBlock(2 * self.feature_dim, self.batch_momentum, self.virtual_batch_size)
-        self.transform_f2 = TransformBlock(2 * self.feature_dim, self.batch_momentum, self.virtual_batch_size)
-        self.transform_f3 = TransformBlock(2 * self.feature_dim, self.batch_momentum, self.virtual_batch_size)
-        self.transform_f4 = TransformBlock(2 * self.feature_dim, self.batch_momentum, self.virtual_batch_size)
-        self.transform_coef = TransformBlock(self.num_features, self.batch_momentum, self.virtual_batch_size)
+        self.transform_f1 = TransformBlock(2 * self.feature_dim, self.batch_momentum, self.virtual_batch_size,
+                                           self.num_groups)
+        self.transform_f2 = TransformBlock(2 * self.feature_dim, self.batch_momentum, self.virtual_batch_size,
+                                           self.num_groups)
+        self.transform_f3 = TransformBlock(2 * self.feature_dim, self.batch_momentum, self.virtual_batch_size,
+                                           self.num_groups)
+        self.transform_f4 = TransformBlock(2 * self.feature_dim, self.batch_momentum, self.virtual_batch_size,
+                                           self.num_groups)
+        self.transform_coef = TransformBlock(self.num_features, self.batch_momentum, self.virtual_batch_size,
+                                             self.num_groups)
 
         self._step_feature_selection_masks = None
         self._step_aggregate_feature_selection_mask = None
