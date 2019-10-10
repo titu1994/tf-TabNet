@@ -94,7 +94,7 @@ class TabNet(tf.keras.Model):
                 Sparsity may provide a favorable inductive bias for convergence to
                 higher accuracy for some datasets where most of the input features are redundant.
             norm_type: Type of normalization to perform for the model. Can be either
-                'group' or 'group'. 'group' is the default.
+                'batch' or 'group'. 'group' is the default.
             batch_momentum: Momentum in ghost batch normalization.
             virtual_batch_size: Virtual batch size in ghost batch normalization. The
                 overall batch size should be an integer multiple of virtual_batch_size.
@@ -138,7 +138,7 @@ class TabNet(tf.keras.Model):
         if virtual_batch_size is not None:
             virtual_batch_size = int(virtual_batch_size)
 
-        if norm_type not in ['group', 'group']:
+        if norm_type not in ['batch', 'group']:
             raise ValueError("`norm_type` must be either `batch` or `group`")
 
         self.feature_columns = feature_columns
