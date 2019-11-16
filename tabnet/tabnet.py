@@ -489,3 +489,8 @@ class TabNetRegressor(tf.keras.Model):
         self.activations = self.tabnet(inputs, training=training)
         out = self.regressor(self.activations)
         return out
+
+
+# Aliases
+TabNetClassification = TabNetClassifier
+TabNetRegression = TabNetRegressor
