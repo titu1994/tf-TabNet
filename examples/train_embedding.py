@@ -61,12 +61,12 @@ class EmbeddingTabNet(tf.keras.Model):
 
         # Assume we have `d` classes, mapped as y = (data_col % d), where data col can take 1000 values.
         # Note: `num_features` *must* be the length of the projection dim.
-        self.tabnet_model = tabnet.TabNetClassification(None, num_classes=num_classes, num_features=projection_dim,
-                                                        feature_dim=4, output_dim=4,
-                                                        num_decision_steps=2, relaxation_factor=1.0,
-                                                        sparsity_coefficient=1e-5, batch_momentum=0.98,
-                                                        virtual_batch_size=None, norm_type='group',
-                                                        num_groups=2)
+        self.tabnet_model = tabnet.TabNetClassifier(None, num_classes=num_classes, num_features=projection_dim,
+                                                    feature_dim=4, output_dim=4,
+                                                    num_decision_steps=2, relaxation_factor=1.0,
+                                                    sparsity_coefficient=1e-5, batch_momentum=0.98,
+                                                    virtual_batch_size=None, norm_type='group',
+                                                    num_groups=2)
 
     def call(self, inputs, training=None):
         embed = self.embed_layer(inputs)  # Map integer index to an embedding vector; Shape = (None, embedding_size)

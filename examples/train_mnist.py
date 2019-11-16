@@ -30,12 +30,12 @@ ds_test = ds_test.map(transform)
 ds_test = ds_test.batch(BATCH_SIZE)
 
 # Use Group Normalization for small batch sizes
-model = tabnet.TabNetClassification(feature_columns=None, num_classes=10, num_features=784,
-                                    feature_dim=16, output_dim=16,
-                                    num_decision_steps=5, relaxation_factor=1.5,
-                                    sparsity_coefficient=0., batch_momentum=0.98,
-                                    virtual_batch_size=None, norm_type='group',
-                                    num_groups=-1)
+model = tabnet.TabNetClassifier(feature_columns=None, num_classes=10, num_features=784,
+                                feature_dim=16, output_dim=16,
+                                num_decision_steps=5, relaxation_factor=1.5,
+                                sparsity_coefficient=0., batch_momentum=0.98,
+                                virtual_batch_size=None, norm_type='group',
+                                num_groups=-1)
 
 lr = tf.keras.optimizers.schedules.ExponentialDecay(0.001, decay_steps=500, decay_rate=0.9, staircase=False)
 optimizer = tf.keras.optimizers.Adam(lr)
