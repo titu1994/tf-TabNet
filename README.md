@@ -41,9 +41,19 @@ $ pip install tabnet[gpu]
 The script `tabnet.py` can be imported to yield either the `TabNet` building block, or the `TabNetClassification` and `TabNetRegression` models, which add appropriate heads for the basic `TabNet` model. If the classification or regression head is to be customized, it is recommended to compose a new model with the `TabNet` as the base of the model.
 
 ```python
-from tabnet import TabNet, TabNetClassification
+from tabnet import TabNet, TabNetClassifier
 
-model = TabNetClassification(feature_list, num_classes, ...)
+model = TabNetClassifier(feature_list, num_classes, ...)
+```
+
+## Stacked TabNets
+
+Regular TabNets can be stacked into various layers, thereby reducing interpretability but improving model capacity.
+
+```python
+from tabnet import StackedTabNetClassifier
+
+model = TabNetClassifier(feature_list, num_classes, num_layers, ...)
 ```
 
 As the models use custom objects, it is necessary to import `custom_objects.py` in an evaluation only script.

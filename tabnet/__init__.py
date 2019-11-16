@@ -9,4 +9,4 @@ from tabnet.stacked_tabnet import StackedTabNetRegressor
 __all__ = ['TabNet', 'TabNetClassifier', 'TabNetRegressor',
            'StackedTabNet', 'StackedTabNetClassifier', 'StackedTabNetRegressor']
 
-__version__ = '0.1.3'
+__version__ = '0.1.4'
