@@ -298,7 +298,7 @@ class TabNet(tf.keras.Model):
         return self._step_aggregate_feature_selection_mask
 
 
-class TabNetClassification(tf.keras.Model):
+class TabNetClassifier(tf.keras.Model):
 
     def __init__(self, feature_columns,
                  num_classes,
@@ -368,7 +368,7 @@ class TabNetClassification(tf.keras.Model):
             num_groups: Number of groups used for group normalization.
             epsilon: A small number for numerical stability of the entropy calculations.
         """
-        super(TabNetClassification, self).__init__(**kwargs)
+        super(TabNetClassifier, self).__init__(**kwargs)
 
         self.num_classes = num_classes
 
@@ -395,7 +395,7 @@ class TabNetClassification(tf.keras.Model):
         return out
 
 
-class TabNetRegression(tf.keras.Model):
+class TabNetRegressor(tf.keras.Model):
 
     def __init__(self, feature_columns,
                  num_regressors,
@@ -465,7 +465,7 @@ class TabNetRegression(tf.keras.Model):
             num_groups: Number of groups used for group normalization.
             epsilon: A small number for numerical stability of the entropy calculations.
         """
-        super(TabNetRegression, self).__init__(**kwargs)
+        super(TabNetRegressor, self).__init__(**kwargs)
 
         self.num_regressors = num_regressors
 
