@@ -9,6 +9,7 @@ class TransformBlock(tf.keras.Model):
                  momentum=0.9,
                  groups=2,
                  virtual_batch_size=None,
+                 block_name='',
                  **kwargs):
         super(TransformBlock, self).__init__(**kwargs)
 
@@ -18,14 +19,15 @@ class TransformBlock(tf.keras.Model):
         self.groups = groups
         self.virtual_batch_size = virtual_batch_size
 
-        self.transform = tf.keras.layers.Dense(self.features, use_bias=False)
+        self.transform = tf.keras.layers.Dense(self.features, use_bias=False, name=f'transformblock_dense_{block_name}')
 
         if norm_type == 'batch':
             self.bn = tf.keras.layers.BatchNormalization(axis=-1, momentum=momentum,
-                                                         virtual_batch_size=virtual_batch_size)
+                                                         virtual_batch_size=virtual_batch_size,
+                                                         name=f'transformblock_bn_{block_name}')
 
         else:
-            self.bn = GroupNormalization(axis=-1, groups=self.groups)
+            self.bn = GroupNormalization(axis=-1, groups=self.groups, name=f'transformblock_gn_{block_name}')
 
     def call(self, inputs, training=None):
         x = self.transform(inputs)
@@ -159,24 +161,29 @@ class TabNet(tf.keras.Model):
             self.input_features = tf.keras.layers.DenseFeatures(feature_columns)
 
             if self.norm_type == 'batch':
-                self.input_bn = tf.keras.layers.BatchNormalization(axis=-1, momentum=batch_momentum)
+                self.input_bn = tf.keras.layers.BatchNormalization(axis=-1, momentum=batch_momentum, name='input_bn')
             else:
-                self.input_bn = GroupNormalization(axis=-1, groups=self.num_groups)
+                self.input_bn = GroupNormalization(axis=-1, groups=self.num_groups, name='input_gn')
 
         else:
             self.input_features = None
             self.input_bn = None
 
         self.transform_f1 = TransformBlock(2 * self.feature_dim, self.batch_momentum, self.virtual_batch_size,
-                                           self.num_groups)
+                                           self.num_groups, block_name='f1')
         self.transform_f2 = TransformBlock(2 * self.feature_dim, self.batch_momentum, self.virtual_batch_size,
-                                           self.num_groups)
-        self.transform_f3 = TransformBlock(2 * self.feature_dim, self.batch_momentum, self.virtual_batch_size,
-                                           self.num_groups)
-        self.transform_f4 = TransformBlock(2 * self.feature_dim, self.batch_momentum, self.virtual_batch_size,
-                                           self.num_groups)
-        self.transform_coef = TransformBlock(self.num_features, self.batch_momentum, self.virtual_batch_size,
-                                             self.num_groups)
+                                           self.num_groups, block_name='f2')
+        self.transform_f3_list = [TransformBlock(2 * self.feature_dim, self.batch_momentum, self.virtual_batch_size,
+                                           self.num_groups, block_name=f'f3_{i}')
+                                           for i in range(self.num_decision_steps)]
+        self.transform_f4_list = [TransformBlock(2 * self.feature_dim, self.batch_momentum, self.virtual_batch_size,
+                                           self.num_groups, block_name=f'f4_{i}')
+                                           for i in range(self.num_decision_steps)]
+
+        self.transform_coef_list = [TransformBlock(self.num_features, self.batch_momentum, self.virtual_batch_size,
+                                             self.num_groups, block_name=f'coef_{i}')
+                                             for i in range(self.num_decision_steps-1)]
+
 
         self._step_feature_selection_masks = None
         self._step_aggregate_feature_selection_mask = None
@@ -198,7 +205,7 @@ class TabNet(tf.keras.Model):
         masked_features = features
         mask_values = tf.zeros([batch_size, self.num_features])
         aggregated_mask_values = tf.zeros([batch_size, self.num_features])
-        complemantary_aggregated_mask_values = tf.ones(
+        complementary_aggregated_mask_values = tf.ones(
             [batch_size, self.num_features])
 
         total_entropy = 0.0
@@ -214,11 +221,11 @@ class TabNet(tf.keras.Model):
             transform_f2 = (glu(transform_f2, self.feature_dim) +
                             transform_f1) * tf.math.sqrt(0.5)
 
-            transform_f3 = self.transform_f3(transform_f2, training=training)
+            transform_f3 = self.transform_f3_list[ni](transform_f2, training=training)
             transform_f3 = (glu(transform_f3, self.feature_dim) +
                             transform_f2) * tf.math.sqrt(0.5)
 
-            transform_f4 = self.transform_f4(transform_f3, training=training)
+            transform_f4 = self.transform_f4_list[ni](transform_f3, training=training)
             transform_f4 = (glu(transform_f4, self.feature_dim) +
                             transform_f3) * tf.math.sqrt(0.5)
 
@@ -240,14 +247,14 @@ class TabNet(tf.keras.Model):
             if (ni < (self.num_decision_steps - 1)):
                 # Determines the feature masks via linear and nonlinear
                 # transformations, taking into account of aggregated feature use.
-                mask_values = self.transform_coef(features_for_coef, training=training)
-                mask_values *= complemantary_aggregated_mask_values
+                mask_values = self.transform_coef_list[ni](features_for_coef, training=training)
+                mask_values *= complementary_aggregated_mask_values
                 mask_values = sparsemax(mask_values, axis=-1)
 
                 # Relaxation factor controls the amount of reuse of features between
                 # different decision blocks and updated with the values of
                 # coefficients.
-                complemantary_aggregated_mask_values *= (
+                complementary_aggregated_mask_values *= (
                         self.relaxation_factor - mask_values)
 
                 # Entropy is used to penalize the amount of sparsity in feature
@@ -386,13 +393,17 @@ class TabNetClassifier(tf.keras.Model):
                              epsilon=epsilon,
                              **kwargs)
 
-        self.clf = tf.keras.layers.Dense(num_classes, activation='softmax', use_bias=False)
+        self.clf = tf.keras.layers.Dense(num_classes, activation='softmax', use_bias=False, name='classifier')
 
     def call(self, inputs, training=None):
         self.activations = self.tabnet(inputs, training=training)
         out = self.clf(self.activations)
 
         return out
+
+    def summary(self, *super_args, **super_kwargs):
+        super(TabNetClassifier, self).summary(*super_args, **super_kwargs)
+        self.tabnet.summary(*super_args, **super_kwargs)
 
 
 class TabNetRegressor(tf.keras.Model):
@@ -483,13 +494,16 @@ class TabNetRegressor(tf.keras.Model):
                              epsilon=epsilon,
                              **kwargs)
 
-        self.regressor = tf.keras.layers.Dense(num_regressors, use_bias=False)
+        self.regressor = tf.keras.layers.Dense(num_regressors, use_bias=False, name='regressor')
 
     def call(self, inputs, training=None):
         self.activations = self.tabnet(inputs, training=training)
         out = self.regressor(self.activations)
         return out
 
+    def summary(self, *super_args, **super_kwargs):
+        super(TabNetClassifier, self).summary(*super_args, **super_kwargs)
+        self.tabnet.summary(*super_args, **super_kwargs)
 
 # Aliases
 TabNetClassification = TabNetClassifier
