@@ -7,8 +7,8 @@ class TransformBlock(tf.keras.Model):
     def __init__(self, features,
                  norm_type,
                  momentum=0.9,
-                 groups=2,
                  virtual_batch_size=None,
+                 groups=2,
                  block_name='',
                  **kwargs):
         super(TransformBlock, self).__init__(**kwargs)
@@ -169,20 +169,29 @@ class TabNet(tf.keras.Model):
             self.input_features = None
             self.input_bn = None
 
-        self.transform_f1 = TransformBlock(2 * self.feature_dim, self.batch_momentum, self.virtual_batch_size,
-                                           self.num_groups, block_name='f1')
-        self.transform_f2 = TransformBlock(2 * self.feature_dim, self.batch_momentum, self.virtual_batch_size,
-                                           self.num_groups, block_name='f2')
-        self.transform_f3_list = [TransformBlock(2 * self.feature_dim, self.batch_momentum, self.virtual_batch_size,
-                                           self.num_groups, block_name=f'f3_{i}')
-                                           for i in range(self.num_decision_steps)]
-        self.transform_f4_list = [TransformBlock(2 * self.feature_dim, self.batch_momentum, self.virtual_batch_size,
-                                           self.num_groups, block_name=f'f4_{i}')
-                                           for i in range(self.num_decision_steps)]
+        self.transform_f1 = TransformBlock(2 * self.feature_dim, self.norm_type,
+                self.batch_momentum, self.virtual_batch_size, self.num_groups, block_name='f1')
 
-        self.transform_coef_list = [TransformBlock(self.num_features, self.batch_momentum, self.virtual_batch_size,
-                                             self.num_groups, block_name=f'coef_{i}')
-                                             for i in range(self.num_decision_steps-1)]
+        self.transform_f2 = TransformBlock(2 * self.feature_dim, self.norm_type,
+                self.batch_momentum, self.virtual_batch_size, self.num_groups, block_name='f2')
+
+        self.transform_f3_list = [
+            TransformBlock(2 * self.feature_dim, self.norm_type,
+                self.batch_momentum, self.virtual_batch_size, self.num_groups, block_name=f'f3_{i}')
+            for i in range(self.num_decision_steps)
+        ]
+
+        self.transform_f4_list = [
+            TransformBlock(2 * self.feature_dim, self.norm_type,
+                self.batch_momentum, self.virtual_batch_size, self.num_groups, block_name=f'f4_{i}')
+            for i in range(self.num_decision_steps)
+        ]
+
+        self.transform_coef_list = [
+            TransformBlock(self.num_features, self.norm_type,
+                self.batch_momentum, self.virtual_batch_size, self.num_groups, block_name=f'coef_{i}')
+            for i in range(self.num_decision_steps-1)
+        ]
 
 
         self._step_feature_selection_masks = None
