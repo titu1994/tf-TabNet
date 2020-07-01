@@ -18,6 +18,7 @@ def glu(x, n_units=None):
 Code replicated from https://github.com/tensorflow/addons/blob/master/tensorflow_addons/activations/sparsemax.py
 """
 @register_keras_custom_object
+@tf.function
 def sparsemax(logits, axis=-1):
     """Sparsemax activation function [1].
     For each batch `i` and class `j` we have
@@ -70,6 +71,7 @@ def _swap_axis(logits, dim_index, last_index, **kwargs):
         ], 0), **kwargs)
 
 
+@tf.function
 def _compute_2d_sparsemax(logits):
     """Performs the sparsemax operation when axis=-1."""
     shape_op = tf.shape(logits)
