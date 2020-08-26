@@ -225,8 +225,8 @@ class GroupNormalization(tf.keras.layers.Layer):
         self.built = True
         super().build(input_shape)
 
-    def call(self, inputs):
-
+    def call(self, inputs, training=None):
+        # Training=none is just for compat with batchnorm signature call
         input_shape = tf.keras.backend.int_shape(inputs)
         tensor_input_shape = tf.shape(inputs)
 
