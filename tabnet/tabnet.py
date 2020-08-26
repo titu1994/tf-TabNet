@@ -163,6 +163,10 @@ class TabNet(tf.keras.Model):
         self.num_groups = num_groups
         self.epsilon = epsilon
 
+        if num_decision_steps > 1:
+            features_for_coeff = feature_dim - output_dim
+            print(f"[TabNet]: {features_for_coeff} features will be used for decision steps")
+
         if self.feature_columns is not None:
             self.input_features = tf.keras.layers.DenseFeatures(feature_columns, trainable=True)
 
