@@ -122,6 +122,12 @@ class TabNet(tf.keras.Model):
             if num_features is None:
                 raise ValueError("If `feature_columns` is None, then `num_features` cannot be None.")
 
+        if num_decision_steps < 1:
+            raise ValueError("Num decision steps must be greater than 0.")
+
+        if feature_dim <= output_dim:
+            raise ValueError("To compute `features_for_coef`, feature_dim must be larger than output dim")
+
         feature_dim = int(feature_dim)
         output_dim = int(output_dim)
         num_decision_steps = int(num_decision_steps)
@@ -158,7 +164,7 @@ class TabNet(tf.keras.Model):
         self.epsilon = epsilon
 
         if self.feature_columns is not None:
-            self.input_features = tf.keras.layers.DenseFeatures(feature_columns)
+            self.input_features = tf.keras.layers.DenseFeatures(feature_columns, trainable=True)
 
             if self.norm_type == 'batch':
                 self.input_bn = tf.keras.layers.BatchNormalization(axis=-1, momentum=batch_momentum, name='input_bn')
@@ -170,29 +176,30 @@ class TabNet(tf.keras.Model):
             self.input_bn = None
 
         self.transform_f1 = TransformBlock(2 * self.feature_dim, self.norm_type,
-                self.batch_momentum, self.virtual_batch_size, self.num_groups, block_name='f1')
+                                           self.batch_momentum, self.virtual_batch_size, self.num_groups,
+                                           block_name='f1')
 
         self.transform_f2 = TransformBlock(2 * self.feature_dim, self.norm_type,
-                self.batch_momentum, self.virtual_batch_size, self.num_groups, block_name='f2')
+                                           self.batch_momentum, self.virtual_batch_size, self.num_groups,
+                                           block_name='f2')
 
         self.transform_f3_list = [
             TransformBlock(2 * self.feature_dim, self.norm_type,
-                self.batch_momentum, self.virtual_batch_size, self.num_groups, block_name=f'f3_{i}')
+                           self.batch_momentum, self.virtual_batch_size, self.num_groups, block_name=f'f3_{i}')
             for i in range(self.num_decision_steps)
         ]
 
         self.transform_f4_list = [
             TransformBlock(2 * self.feature_dim, self.norm_type,
-                self.batch_momentum, self.virtual_batch_size, self.num_groups, block_name=f'f4_{i}')
+                           self.batch_momentum, self.virtual_batch_size, self.num_groups, block_name=f'f4_{i}')
             for i in range(self.num_decision_steps)
         ]
 
         self.transform_coef_list = [
             TransformBlock(self.num_features, self.norm_type,
-                self.batch_momentum, self.virtual_batch_size, self.num_groups, block_name=f'coef_{i}')
-            for i in range(self.num_decision_steps-1)
+                           self.batch_momentum, self.virtual_batch_size, self.num_groups, block_name=f'coef_{i}')
+            for i in range(self.num_decision_steps - 1)
         ]
-
 
         self._step_feature_selection_masks = None
         self._step_aggregate_feature_selection_mask = None
@@ -222,7 +229,7 @@ class TabNet(tf.keras.Model):
 
         for ni in range(self.num_decision_steps):
             # Feature transformer with two shared and two decision step dependent
-            # blocks is used below.
+            # blocks is used below.=
             transform_f1 = self.transform_f1(masked_features, training=training)
             transform_f1 = glu(transform_f1, self.feature_dim)
 
@@ -238,7 +245,7 @@ class TabNet(tf.keras.Model):
             transform_f4 = (glu(transform_f4, self.feature_dim) +
                             transform_f3) * tf.math.sqrt(0.5)
 
-            if (ni > 0):
+            if (ni > 0 or self.num_decision_steps == 1):
                 decision_out = tf.nn.relu(transform_f4[:, :self.output_dim])
 
                 # Decision aggregation.
@@ -247,13 +254,15 @@ class TabNet(tf.keras.Model):
                 # Aggregated masks are used for visualization of the
                 # feature importance attributes.
                 scale_agg = tf.reduce_sum(decision_out, axis=1, keepdims=True)
-                scale_agg = scale_agg / tf.cast(self.num_decision_steps - 1, tf.float32)
+
+                if self.num_decision_steps > 1:
+                    scale_agg = scale_agg / tf.cast(self.num_decision_steps - 1, tf.float32)
 
                 aggregated_mask_values += mask_values * scale_agg
 
-            features_for_coef = (transform_f4[:, self.output_dim:])
+            features_for_coef = transform_f4[:, self.output_dim:]
 
-            if (ni < (self.num_decision_steps - 1)):
+            if ni < (self.num_decision_steps - 1):
                 # Determines the feature masks via linear and nonlinear
                 # transformations, taking into account of aggregated feature use.
                 mask_values = self.transform_coef_list[ni](features_for_coef, training=training)
@@ -271,7 +280,7 @@ class TabNet(tf.keras.Model):
                 total_entropy += tf.reduce_mean(
                     tf.reduce_sum(
                         -mask_values * tf.math.log(mask_values + self.epsilon), axis=1)) / (
-                        tf.cast(self.num_decision_steps - 1, tf.float32))
+                                     tf.cast(self.num_decision_steps - 1, tf.float32))
 
                 # Add entropy loss
                 entropy_loss = total_entropy
@@ -411,7 +420,7 @@ class TabNetClassifier(tf.keras.Model):
         return out
 
     def summary(self, *super_args, **super_kwargs):
-        super(TabNetClassifier, self).summary(*super_args, **super_kwargs)
+        super().summary(*super_args, **super_kwargs)
         self.tabnet.summary(*super_args, **super_kwargs)
 
 
@@ -511,8 +520,9 @@ class TabNetRegressor(tf.keras.Model):
         return out
 
     def summary(self, *super_args, **super_kwargs):
-        super(TabNetClassifier, self).summary(*super_args, **super_kwargs)
+        super().summary(*super_args, **super_kwargs)
         self.tabnet.summary(*super_args, **super_kwargs)
+
 
 # Aliases
 TabNetClassification = TabNetClassifier

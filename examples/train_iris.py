@@ -35,7 +35,7 @@ for col_name in col_names:
 
 # Group Norm does better for small datasets
 model = tabnet.TabNetClassifier(feature_columns, num_classes=3,
-                                feature_dim=4, output_dim=4,
+                                feature_dim=5, output_dim=4,
                                 num_decision_steps=2, relaxation_factor=1.0,
                                 sparsity_coefficient=1e-5, batch_momentum=0.98,
                                 virtual_batch_size=None, norm_type='group',

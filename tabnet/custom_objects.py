@@ -17,9 +17,11 @@ def glu(x, n_units=None):
 """
 Code replicated from https://github.com/tensorflow/addons/blob/master/tensorflow_addons/activations/sparsemax.py
 """
+
+
 @register_keras_custom_object
 @tf.function
-def sparsemax(logits, axis=-1):
+def sparsemax(logits, axis):
     """Sparsemax activation function [1].
     For each batch `i` and class `j` we have
       $$sparsemax[i, j] = max(logits[i, j] - tau(logits[i, :]), 0)$$
@@ -65,13 +67,19 @@ def sparsemax(logits, axis=-1):
 def _swap_axis(logits, dim_index, last_index, **kwargs):
     return tf.transpose(
         logits,
-        tf.concat([
-            tf.range(dim_index), [last_index],
-            tf.range(dim_index + 1, last_index), [dim_index]
-        ], 0), **kwargs)
+        tf.concat(
+            [
+                tf.range(dim_index),
+                [last_index],
+                tf.range(dim_index + 1, last_index),
+                [dim_index],
+            ],
+            0,
+        ),
+        **kwargs,
+    )
 
 
-@tf.function
 def _compute_2d_sparsemax(logits):
     """Performs the sparsemax operation when axis=-1."""
     shape_op = tf.shape(logits)
@@ -107,21 +115,21 @@ def _compute_2d_sparsemax(logits):
     # fixed later (see p_safe) by returning p = nan. This results in the same
     # behavior as softmax.
     k_z_safe = tf.math.maximum(k_z, 1)
-    indices = tf.stack(
-        [tf.range(0, obs), tf.reshape(k_z_safe, [-1]) - 1], axis=1)
+    indices = tf.stack([tf.range(0, obs), tf.reshape(k_z_safe, [-1]) - 1], axis=1)
     tau_sum = tf.gather_nd(z_cumsum, indices)
     tau_z = (tau_sum - 1) / tf.cast(k_z, logits.dtype)
 
     # calculate p
-    p = tf.math.maximum(
-        tf.cast(0, logits.dtype), z - tf.expand_dims(tau_z, -1))
+    p = tf.math.maximum(tf.cast(0, logits.dtype), z - tf.expand_dims(tau_z, -1))
     # If k_z = 0 or if z = nan, then the input is invalid
     p_safe = tf.where(
         tf.expand_dims(
-            tf.math.logical_or(
-                tf.math.equal(k_z, 0), tf.math.is_nan(z_cumsum[:, -1])),
-            axis=-1), tf.fill([obs, dims], tf.cast(float("nan"),
-                                                   logits.dtype)), p)
+            tf.math.logical_or(tf.math.equal(k_z, 0), tf.math.is_nan(z_cumsum[:, -1])),
+            axis=-1,
+        ),
+        tf.fill([obs, dims], tf.cast(float("nan"), logits.dtype)),
+        p,
+    )
 
     # Reshape back to original size
     p_safe = tf.reshape(p_safe, shape_op)
@@ -131,6 +139,8 @@ def _compute_2d_sparsemax(logits):
 """
 Code replicated from https://github.com/tensorflow/addons/blob/master/tensorflow_addons/layers/normalizations.py
 """
+
+
 @register_keras_custom_object
 class GroupNormalization(tf.keras.layers.Layer):
     """Group normalization layer.
@@ -173,20 +183,22 @@ class GroupNormalization(tf.keras.layers.Layer):
         - [Group Normalization](https://arxiv.org/abs/1803.08494)
     """
 
-    def __init__(self,
-                 groups=2,
-                 axis=-1,
-                 epsilon=1e-3,
-                 center=True,
-                 scale=True,
-                 beta_initializer='zeros',
-                 gamma_initializer='ones',
-                 beta_regularizer=None,
-                 gamma_regularizer=None,
-                 beta_constraint=None,
-                 gamma_constraint=None,
-                 **kwargs):
-        super(GroupNormalization, self).__init__(**kwargs)
+    def __init__(
+            self,
+            groups: int = 2,
+            axis: int = -1,
+            epsilon: float = 1e-3,
+            center: bool = True,
+            scale: bool = True,
+            beta_initializer="zeros",
+            gamma_initializer="ones",
+            beta_regularizer=None,
+            gamma_regularizer=None,
+            beta_constraint=None,
+            gamma_constraint=None,
+            **kwargs
+    ):
+        super().__init__(**kwargs)
         self.supports_masking = True
         self.groups = groups
         self.axis = axis
@@ -211,19 +223,18 @@ class GroupNormalization(tf.keras.layers.Layer):
         self._add_gamma_weight(input_shape)
         self._add_beta_weight(input_shape)
         self.built = True
-        super(GroupNormalization, self).build(input_shape)
+        super().build(input_shape)
 
-    def call(self, inputs, training=None):
-        # NOTE: `training` is unused, it is kept for compatibility with BatchNorm call signature
+    def call(self, inputs):
 
         input_shape = tf.keras.backend.int_shape(inputs)
         tensor_input_shape = tf.shape(inputs)
 
         reshaped_inputs, group_shape = self._reshape_into_groups(
-            inputs, input_shape, tensor_input_shape)
+            inputs, input_shape, tensor_input_shape
+        )
 
-        normalized_inputs = self._apply_normalization(reshaped_inputs,
-                                                      input_shape)
+        normalized_inputs = self._apply_normalization(reshaped_inputs, input_shape)
 
         outputs = tf.reshape(normalized_inputs, tensor_input_shape)
 
@@ -231,31 +242,24 @@ class GroupNormalization(tf.keras.layers.Layer):
 
     def get_config(self):
         config = {
-            'groups':
-            self.groups,
-            'axis':
-            self.axis,
-            'epsilon':
-            self.epsilon,
-            'center':
-            self.center,
-            'scale':
-            self.scale,
-            'beta_initializer':
-            tf.keras.initializers.serialize(self.beta_initializer),
-            'gamma_initializer':
-            tf.keras.initializers.serialize(self.gamma_initializer),
-            'beta_regularizer':
-            tf.keras.regularizers.serialize(self.beta_regularizer),
-            'gamma_regularizer':
-            tf.keras.regularizers.serialize(self.gamma_regularizer),
-            'beta_constraint':
-            tf.keras.constraints.serialize(self.beta_constraint),
-            'gamma_constraint':
-            tf.keras.constraints.serialize(self.gamma_constraint)
+            "groups": self.groups,
+            "axis": self.axis,
+            "epsilon": self.epsilon,
+            "center": self.center,
+            "scale": self.scale,
+            "beta_initializer": tf.keras.initializers.serialize(self.beta_initializer),
+            "gamma_initializer": tf.keras.initializers.serialize(
+                self.gamma_initializer
+            ),
+            "beta_regularizer": tf.keras.regularizers.serialize(self.beta_regularizer),
+            "gamma_regularizer": tf.keras.regularizers.serialize(
+                self.gamma_regularizer
+            ),
+            "beta_constraint": tf.keras.constraints.serialize(self.beta_constraint),
+            "gamma_constraint": tf.keras.constraints.serialize(self.gamma_constraint),
         }
-        base_config = super(GroupNormalization, self).get_config()
-        return dict(list(base_config.items()) + list(config.items()))
+        base_config = super().get_config()
+        return {**base_config, **config}
 
     def compute_output_shape(self, input_shape):
         return input_shape
@@ -264,7 +268,7 @@ class GroupNormalization(tf.keras.layers.Layer):
 
         group_shape = [tensor_input_shape[i] for i in range(len(input_shape))]
         group_shape[self.axis] = input_shape[self.axis] // self.groups
-        group_shape.insert(1, self.groups)
+        group_shape.insert(self.axis, self.groups)
         group_shape = tf.stack(group_shape)
         reshaped_inputs = tf.reshape(inputs, group_shape)
         return reshaped_inputs, group_shape
@@ -272,11 +276,13 @@ class GroupNormalization(tf.keras.layers.Layer):
     def _apply_normalization(self, reshaped_inputs, input_shape):
 
         group_shape = tf.keras.backend.int_shape(reshaped_inputs)
-        group_reduction_axes = list(range(len(group_shape)))
-        # Remember the ordering of the tensor is [batch, group , steps]. Jump
-        # the first 2 to calculate the variance and the mean
+        group_reduction_axes = list(range(1, len(group_shape)))
+        axis = -2 if self.axis == -1 else self.axis - 1
+        group_reduction_axes.pop(axis)
+
         mean, variance = tf.nn.moments(
-            reshaped_inputs, group_reduction_axes[2:], keepdims=True)
+            reshaped_inputs, group_reduction_axes, keepdims=True
+        )
 
         gamma, beta = self._get_reshaped_weights(input_shape)
         normalized_inputs = tf.nn.batch_normalization(
@@ -285,7 +291,8 @@ class GroupNormalization(tf.keras.layers.Layer):
             variance=variance,
             scale=gamma,
             offset=beta,
-            variance_epsilon=self.epsilon)
+            variance_epsilon=self.epsilon,
+        )
         return normalized_inputs
 
     def _get_reshaped_weights(self, input_shape):
@@ -302,10 +309,11 @@ class GroupNormalization(tf.keras.layers.Layer):
     def _check_if_input_shape_is_none(self, input_shape):
         dim = input_shape[self.axis]
         if dim is None:
-            raise ValueError('Axis ' + str(self.axis) + ' of '
-                             'input tensor should have a defined dimension '
-                             'but the layer received an input with shape ' +
-                             str(input_shape) + '.')
+            raise ValueError(
+                "Axis " + str(self.axis) + " of "
+                                           "input tensor should have a defined dimension "
+                                           "but the layer received an input with shape " + str(input_shape) + "."
+            )
 
     def _set_number_of_groups_for_instance_norm(self, input_shape):
         dim = input_shape[self.axis]
@@ -318,26 +326,30 @@ class GroupNormalization(tf.keras.layers.Layer):
         dim = input_shape[self.axis]
         if dim < self.groups:
             raise ValueError(
-                'Number of groups (' + str(self.groups) + ') cannot be '
-                'more than the number of channels (' + str(dim) + ').')
+                "Number of groups (" + str(self.groups) + ") cannot be "
+                                                          "more than the number of channels (" + str(dim) + ")."
+            )
 
         if dim % self.groups != 0:
             raise ValueError(
-                'Number of groups (' + str(self.groups) + ') must be a '
-                'multiple of the number of channels (' + str(dim) + ').')
+                "Number of groups (" + str(self.groups) + ") must be a "
+                                                          "multiple of the number of channels (" + str(dim) + ")."
+            )
 
     def _check_axis(self):
 
         if self.axis == 0:
             raise ValueError(
                 "You are trying to normalize your batch axis. Do you want to "
-                "use tf.layer.batch_normalization instead")
+                "use tf.layer.batch_normalization instead"
+            )
 
     def _create_input_spec(self, input_shape):
 
         dim = input_shape[self.axis]
         self.input_spec = tf.keras.layers.InputSpec(
-            ndim=len(input_shape), axes={self.axis: dim})
+            ndim=len(input_shape), axes={self.axis: dim}
+        )
 
     def _add_gamma_weight(self, input_shape):
 
@@ -347,10 +359,11 @@ class GroupNormalization(tf.keras.layers.Layer):
         if self.scale:
             self.gamma = self.add_weight(
                 shape=shape,
-                name='gamma',
+                name="gamma",
                 initializer=self.gamma_initializer,
                 regularizer=self.gamma_regularizer,
-                constraint=self.gamma_constraint)
+                constraint=self.gamma_constraint,
+            )
         else:
             self.gamma = None
 
@@ -362,15 +375,16 @@ class GroupNormalization(tf.keras.layers.Layer):
         if self.center:
             self.beta = self.add_weight(
                 shape=shape,
-                name='beta',
+                name="beta",
                 initializer=self.beta_initializer,
                 regularizer=self.beta_regularizer,
-                constraint=self.beta_constraint)
+                constraint=self.beta_constraint,
+            )
         else:
             self.beta = None
 
     def _create_broadcast_shape(self, input_shape):
         broadcast_shape = [1] * len(input_shape)
         broadcast_shape[self.axis] = input_shape[self.axis] // self.groups
-        broadcast_shape.insert(1, self.groups)
+        broadcast_shape.insert(self.axis, self.groups)
         return broadcast_shape
