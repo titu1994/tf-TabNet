@@ -348,6 +348,6 @@ class StackedTabNetRegressor(tf.keras.Model):
         self.regressor = tf.keras.layers.Dense(num_regressors, use_bias=False)
 
     def call(self, inputs, training=None):
-        self.activations = self.tabnet(inputs, training=training)
+        self.activations = self.stacked_tabnet(inputs, training=training)
         out = self.regressor(self.activations)
         return out
