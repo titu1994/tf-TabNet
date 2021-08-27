@@ -29,11 +29,11 @@ ds_full = ds_full.shuffle(2000, seed=0)
 # Note: Train and test are drawn from same distribution for demonstration purposes.
 # We should get near identical scores on both of them.
 ds_train = ds_full.take(train_size)
-ds_train = ds_train.map(transform)
+ds_train = ds_train.map(transform,num_parallel_calls=tf.data.experimental.AUTOTUNE)
 ds_train = ds_train.batch(BATCH_SIZE)
 
 ds_test = ds_full.skip(train_size)
-ds_test = ds_test.map(transform)
+ds_test = ds_test.map(transform,num_parallel_calls=tf.data.experimental.AUTOTUNE)
 ds_test = ds_test.batch(BATCH_SIZE)
 
 
