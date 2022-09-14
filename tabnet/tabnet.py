@@ -49,6 +49,7 @@ class TabNet(tf.keras.Model):
                  virtual_batch_size=None,
                  num_groups=2,
                  epsilon=1e-5,
+                 random_state = None,
                  **kwargs):
         """
         Tensorflow 2.0 implementation of [TabNet: Attentive Interpretable Tabular Learning](https://arxiv.org/abs/1908.07442)
@@ -104,6 +105,8 @@ class TabNet(tf.keras.Model):
             epsilon: A small number for numerical stability of the entropy calculations.
         """
         super(TabNet, self).__init__(**kwargs)
+        if random_state is not None:
+            tf.keras.utils.set_random_seed(random_state)
 
         # Input checks
         if feature_columns is not None:
@@ -342,6 +345,7 @@ class TabNetClassifier(tf.keras.Model):
                  virtual_batch_size=None,
                  num_groups=1,
                  epsilon=1e-5,
+                 random_state = None,
                  **kwargs):
         """
         Tensorflow 2.0 implementation of [TabNet: Attentive Interpretable Tabular Learning](https://arxiv.org/abs/1908.07442)
@@ -413,6 +417,7 @@ class TabNetClassifier(tf.keras.Model):
                              virtual_batch_size=virtual_batch_size,
                              num_groups=num_groups,
                              epsilon=epsilon,
+                             random_state=random_state,
                              **kwargs)
 
         self.clf = tf.keras.layers.Dense(num_classes, activation='softmax', use_bias=False, name='classifier')
@@ -443,6 +448,7 @@ class TabNetRegressor(tf.keras.Model):
                  virtual_batch_size=None,
                  num_groups=1,
                  epsilon=1e-5,
+                 random_state = None,
                  **kwargs):
         """
         Tensorflow 2.0 implementation of [TabNet: Attentive Interpretable Tabular Learning](https://arxiv.org/abs/1908.07442)
@@ -514,6 +520,7 @@ class TabNetRegressor(tf.keras.Model):
                              virtual_batch_size=virtual_batch_size,
                              num_groups=num_groups,
                              epsilon=epsilon,
+                             random_state=random_state
                              **kwargs)
 
         self.regressor = tf.keras.layers.Dense(num_regressors, use_bias=False, name='regressor')
