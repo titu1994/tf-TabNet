@@ -520,7 +520,7 @@ class TabNetRegressor(tf.keras.Model):
                              virtual_batch_size=virtual_batch_size,
                              num_groups=num_groups,
                              epsilon=epsilon,
-                             random_state=random_state
+                             random_state=random_state,
                              **kwargs)
 
         self.regressor = tf.keras.layers.Dense(num_regressors, use_bias=False, name='regressor')
