@@ -167,7 +167,7 @@ class StackedTabNetClassifier(tf.keras.Model):
                  virtual_batch_size=None,
                  num_groups=2,
                  epsilon=1e-5,
-                 random_state=random_state,
+                 random_state=None,
                  **kwargs):
         """
         Tensorflow 2.0 implementation of [TabNet: Attentive Interpretable Tabular Learning](https://arxiv.org/abs/1908.07442)
@@ -272,7 +272,7 @@ class StackedTabNetRegressor(tf.keras.Model):
                  virtual_batch_size=None,
                  num_groups=2,
                  epsilon=1e-5,
-                 random_state=random_state,
+                 random_state=None,
                  **kwargs):
         """
         Tensorflow 2.0 implementation of [TabNet: Attentive Interpretable Tabular Learning](https://arxiv.org/abs/1908.07442)
