@@ -212,6 +212,8 @@ class TabNet(tf.keras.Model):
         self._step_aggregate_feature_selection_mask = None
 
     def call(self, inputs, training=None):
+        if type(inputs) == list:
+            inputs = inputs[0]
         if self.input_features is not None:
             features = self.input_features(inputs)
             features = self.input_bn(features, training=training)
