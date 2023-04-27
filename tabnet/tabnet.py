@@ -205,7 +205,7 @@ class TabNet(tf.keras.Model):
         self.transform_coef_list = [
             TransformBlock(self.num_features, self.norm_type,
                            self.batch_momentum, self.virtual_batch_size, self.num_groups, block_name=f'coef_{i}')
-            for i in range(self.num_decision_steps - 1)
+            for i in range(self.num_decision_steps)
         ]
 
         self._step_feature_selection_masks = None
@@ -228,7 +228,6 @@ class TabNet(tf.keras.Model):
         # Initializes decision-step dependent variables.
         output_aggregated = tf.zeros([batch_size, self.output_dim])
         masked_features = features
-        mask_values = tf.zeros([batch_size, self.num_features])
         aggregated_mask_values = tf.zeros([batch_size, self.num_features])
         complementary_aggregated_mask_values = tf.ones(
             [batch_size, self.num_features])
@@ -254,29 +253,31 @@ class TabNet(tf.keras.Model):
             transform_f4 = (glu(transform_f4, self.feature_dim) +
                             transform_f3) * tf.math.sqrt(0.5)
 
-            if (ni > 0 or self.num_decision_steps == 1):
-                decision_out = tf.nn.relu(transform_f4[:, :self.output_dim])
-
-                # Decision aggregation.
-                output_aggregated += decision_out
-
-                # Aggregated masks are used for visualization of the
-                # feature importance attributes.
-                scale_agg = tf.reduce_sum(decision_out, axis=1, keepdims=True)
-
-                if self.num_decision_steps > 1:
-                    scale_agg = scale_agg / tf.cast(self.num_decision_steps - 1, tf.float32)
-
-                aggregated_mask_values += mask_values * scale_agg
+            
 
             features_for_coef = transform_f4[:, self.output_dim:]
+            mask_values = self.transform_coef_list[ni](features_for_coef, training=training)
+            mask_values *= complementary_aggregated_mask_values
+            mask_values = sparsemax(mask_values, axis=-1)
+
+            decision_out = tf.nn.relu(transform_f4[:, :self.output_dim])
+            
+            # Decision aggregation.
+            output_aggregated += decision_out
+            
+            # Aggregated masks are used for visualization of the
+            # feature importance attributes.
+            scale_agg = tf.reduce_sum(decision_out, axis=1, keepdims=True)
+            
+            if self.num_decision_steps > 1:
+                scale_agg = scale_agg / tf.cast(self.num_decision_steps - 1, tf.float32)
+            
+            aggregated_mask_values += mask_values * scale_agg
 
             if ni < (self.num_decision_steps - 1):
                 # Determines the feature masks via linear and nonlinear
                 # transformations, taking into account of aggregated feature use.
-                mask_values = self.transform_coef_list[ni](features_for_coef, training=training)
-                mask_values *= complementary_aggregated_mask_values
-                mask_values = sparsemax(mask_values, axis=-1)
+                
 
                 # Relaxation factor controls the amount of reuse of features between
                 # different decision blocks and updated with the values of
